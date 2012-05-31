@@ -1,4 +1,4 @@
-module Hickory (buildTree) where
+module Hickory (buildTree, evalTree) where
 
 import Data.List (group, partition, sort)
 
@@ -19,13 +19,21 @@ buildTree differentiators training_data =
              a                = buildTree differentiators' without
              b                = buildTree differentiators' with
 
+evalTree :: Tree document category -> document -> category
+evalTree (Leaf category) _ = category
+evalTree (Node no diff yes) document = if diff document
+                                       then evalTree yes document
+                                       else evalTree no document 
+
 -- Private (non-exported) functions
 
 deleteAt 0 (x:xs) = xs
 deleteAt i (x:xs) = x : deleteAt (i - 1) xs
 
 -- TODO: Write a for-real one of these. 
-bestDifferentiatorIndex a b = 0
+bestDifferentiatorIndex differentiators training_data = 
+  do let differentiators_igs = zip (map (informationGain training_data) differentiators) differentiators
+         
 
 entropy :: (Floating t, Ord category) => [(document, category)] -> t
 entropy pairs = let counts = map (fromIntegral . length) $ group $ sort $ map (snd) pairs
@@ -33,7 +41,7 @@ entropy pairs = let counts = map (fromIntegral . length) $ group $ sort $ map (s
                 in (-1) * (sum $ map (\p -> p * (logBase 2.0 p)) $ map (\c -> c / total) counts)
 
 informationGain :: (Floating t, Eq category, Ord category) => Differentiator document -> [(document, category)] -> t
-informationGain differentiator training_data = 
+informationGain training_data differentiator = 
   let (with, without) = partition (differentiator . fst) training_data
       entropy_with    = ((fromIntegral $ length with) / (fromIntegral $ length training_data) * (entropy with))
       entropy_without = ((fromIntegral $ length without) / (fromIntegral $ length training_data) * (entropy without))
